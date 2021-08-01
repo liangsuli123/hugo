@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<!-- saved from url=(0022)https://v3u.cn/a_id_91 -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="applicable-device" content="pc,mobile">
+    <title>关于mysql联合索引的最左前缀原则以及b+tree</title>
+    <link rel="stylesheet" href="./1_files/min.css">
+
+
+  <link rel="shortcut icon" href="https://v3u.cn/favicon.ico" type="image/x-icon">
+  <link rel="icon" href="https://v3u.cn/favicon.ico" type="image/x-icon">
+
+
+
+  </head>
+  <body>
+
+    
+   <nav class="navbar navbar-inverse navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+          <span class="sr-only">菜单</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          </button>
+        </div>
+        <div id="navbar" class="collapse navbar-collapse">
+          <ul class="nav navbar-nav">
+            <li class="index_nav index_index"><a href="https://v3u.cn/" title="ruby语言">Home</a></li>
+            <li class="index_nav index_1"><a href="https://v3u.cn/l_id_1" title="python实践">Python</a></li>
+            <li class="index_nav index_2"><a href="https://v3u.cn/l_id_2" title="前端">Web Design</a></li>
+            <li class="index_nav index_3 active"><a href="https://v3u.cn/l_id_3" title="数据库相关">Db &amp; SQL</a></li>
+            <li class="index_nav index_4"><a href="https://v3u.cn/l_id_4" title="Mac &amp; Linu">Mac &amp; Linux</a></li>
+            <li class="index_nav index_5"><a href="https://v3u.cn/l_id_5" title="Go 和 Ruby 相关实践">Go &amp; Ruby</a></li>
+            <li class="index_nav index_6"><a href="https://v3u.cn/l_id_6" title="生活和工作">Life &amp; Work</a></li>
+            <li class="index_nav index_7"><a href="https://v3u.cn/resume" title="简历">Resume</a></li>
+            <li class="index_nav index_8"><a href="https://v3u.cn/bbs" rel="nofollow" title="社区">Community</a></li>
+          </ul>
+
+
+        </div>
+      
+      </div>
+    </nav>
+   
+
+    <div class="container">
+    <header>
+      <a href="https://v3u.cn/" title="Ruby语言"><img src="./1_files/logo.png"></a>
+    </header>
+    
+    <section>
+      <div class="row">
+        <div class="col-md-8">
+
+          <article class="blog-post">
+   
+            <div class="blog-post-body">
+              <h1>关于mysql联合索引的最左前缀原则以及b+tree</h1>
+              <div class="post-meta"><span><a href="https://v3u.cn/" title="ruby语言">首页</a> - <a href="https://v3u.cn/l_id_3" title="Db &amp; SQL">Db &amp; SQL</a> </span>/<span><i class="fa fa-clock-o"></i>2019-06-10</span></div>
+              <div class="blog-post-text">
+               <p>
+	&nbsp; &nbsp; 软件版本mysql5.7
+</p>
+<p>
+	&nbsp; &nbsp; 根据官网的文档 https://dev.mysql.com/doc/refman/5.7/en/multiple-column-indexes.html
+</p>
+<p>
+	&nbsp;&nbsp;&nbsp;&nbsp;<span style="font-family:&quot;font-size:14px;background-color:#FFFFFF;">查询条件要符合最左原则才能使用到索引</span> 
+</p>
+<p>
+	<span style="font-family:&quot;font-size:14px;background-color:#FFFFFF;"><br>
+</span> 
+</p>
+<p>
+	&nbsp; &nbsp; 首先说说联合索引的好处：
+</p>
+<p>
+	<br>
+</p>
+<p>
+	&nbsp;&nbsp;&nbsp;&nbsp;覆盖索引，这一点是最重要的，重所周知非主键索引会先查到主键索引的值再从主键索引上拿到想要的值，这样多一次查询索引下推。但是覆盖索引可以直接在非主键索引上拿到相应的值，减少一次查询。<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;在一张大表中如果有 (a,b,c)联合索引就等于同时加上了 (a) (ab) (abc) 三个索引减少了存储上的一部分的开销和操作开销<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;梯度漏斗，比如 select *from t where a = 1 and b = 2 and c = 3; 就等于在满足 a = 1 的一部分数据中过滤掉b = 2 的 再从 a = 1 and b = 2 过滤掉 c = 3 的，越多查询越高效。
+</p>
+<p>
+	&nbsp; &nbsp; 到底啥是最左原则?
+</p>
+<p>
+	&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#333333;font-family:-apple-system, system-ui, &quot;font-size:15px;background-color:#FFFFFF;">即最左优先，在检索数据时从联合索引的最左边开始匹配,类似于给(a,b,c)这三个字段加上联合索引就等于同时加上了 (a) (ab) (abc) 这三种组合的查询优化</span> 
+</p>
+<p>
+	<span style="color:#333333;font-family:-apple-system, system-ui, &quot;font-size:15px;background-color:#FFFFFF;"><br>
+</span> 
+</p>
+<p>
+	<span style="color:#333333;font-family:-apple-system, system-ui, &quot;font-size:15px;background-color:#FFFFFF;">&nbsp; &nbsp; 举个栗子：<br>
+</span> 
+</p>
+<p>
+	<span style="color:#333333;font-family:-apple-system, system-ui, &quot;font-size:15px;background-color:#FFFFFF;">&nbsp;&nbsp;&nbsp;&nbsp; </span> 
+</p>
+<pre class="prettyprint lang-bsh"><span class="pln">CREATE TABLE </span><span class="str">`user`</span><span class="pln">  </span><span class="pun">(</span><span class="pln">
+  </span><span class="str">`id`</span><span class="pln"> int</span><span class="pun">(</span><span class="lit">11</span><span class="pun">)</span><span class="pln"> NOT NULL AUTO_INCREMENT</span><span class="pun">,</span><span class="pln">
+  </span><span class="str">`name`</span><span class="pln"> varchar</span><span class="pun">(</span><span class="lit">25</span><span class="pun">),</span><span class="pln">
+  </span><span class="str">`sex`</span><span class="pln"> varchar</span><span class="pun">(</span><span class="lit">25</span><span class="pun">)</span><span class="pln"> </span><span class="pun">,</span><span class="pln">
+  </span><span class="str">`city`</span><span class="pln"> varchar</span><span class="pun">(</span><span class="lit">25</span><span class="pun">)</span><span class="pln"> </span><span class="pun">,</span><span class="pln">
+  PRIMARY KEY </span><span class="pun">(</span><span class="str">`id`</span><span class="pun">)</span><span class="pln"> USING BTREE</span><span class="pun">,</span><span class="pln">
+  INDEX </span><span class="str">`name`</span><span class="pun">(</span><span class="str">`name`</span><span class="pun">,</span><span class="pln"> </span><span class="str">`sex`</span><span class="pun">,</span><span class="pln"> </span><span class="str">`city`</span><span class="pun">)</span><span class="pln"> USING BTREE
+</span><span class="pun">)</span></pre>
+<br>
+<p>
+	<br>
+</p>
+<pre class="prettyprint lang-bsh"><span class="pln">EXPLAIN select </span><span class="pun">*</span><span class="pln"> from </span><span class="str">`user`</span><span class="pln"> where sex</span><span class="pun">=</span><span class="str">''</span><span class="pun">;</span></pre>
+<p>
+	这样是无法触发联合索引的，因为不符合最左原则，没有命中(a) (ab) (abc) 这种组合
+</p>
+<p>
+	<br>
+</p>
+<pre class="prettyprint lang-bsh"><span class="pun">+----+-------------+-------+------------+-------+---------------+------+---------+------+------+----------+--------------------------+</span><span class="pln">
+</span><span class="pun">|</span><span class="pln"> id </span><span class="pun">|</span><span class="pln"> select_type </span><span class="pun">|</span><span class="pln"> table </span><span class="pun">|</span><span class="pln"> partitions </span><span class="pun">|</span><span class="pln"> type  </span><span class="pun">|</span><span class="pln"> possible_keys </span><span class="pun">|</span><span class="pln"> key  </span><span class="pun">|</span><span class="pln"> key_len </span><span class="pun">|</span><span class="pln"> ref  </span><span class="pun">|</span><span class="pln"> rows </span><span class="pun">|</span><span class="pln"> filtered </span><span class="pun">|</span><span class="pln"> </span><span class="typ">Extra</span><span class="pln">                    </span><span class="pun">|</span><span class="pln">
+</span><span class="pun">+----+-------------+-------+------------+-------+---------------+------+---------+------+------+----------+--------------------------+</span><span class="pln">
+</span><span class="pun">|</span><span class="pln">  </span><span class="lit">1</span><span class="pln"> </span><span class="pun">|</span><span class="pln"> SIMPLE      </span><span class="pun">|</span><span class="pln"> user  </span><span class="pun">|</span><span class="pln"> NULL       </span><span class="pun">|</span><span class="pln"> index </span><span class="pun">|</span><span class="pln"> NULL          </span><span class="pun">|</span><span class="pln"> name </span><span class="pun">|</span><span class="pln"> </span><span class="lit">309</span><span class="pln">     </span><span class="pun">|</span><span class="pln"> NULL </span><span class="pun">|</span><span class="pln">    </span><span class="lit">3</span><span class="pln"> </span><span class="pun">|</span><span class="pln">    </span><span class="lit">33.33</span><span class="pln"> </span><span class="pun">|</span><span class="pln"> </span><span class="typ">Using</span><span class="pln"> where</span><span class="pun">;</span><span class="pln"> </span><span class="typ">Using</span><span class="pln"> index </span><span class="pun">|</span><span class="pln">
+</span><span class="pun">+----+-------------+-------+------------+-------+---------------+------+---------+------+------+----------+--------------------------+</span><span class="pln">
+</span><span class="lit">1</span><span class="pln"> row </span><span class="kwd">in</span><span class="pln"> </span><span class="kwd">set</span><span class="pln"> </span><span class="pun">(</span><span class="lit">0.02</span><span class="pln"> sec</span><span class="pun">)</span></pre>
+<p>
+	<br>
+</p>
+<p>
+	&nbsp;&nbsp;&nbsp;&nbsp;另外使用执行计划一定要看结果，只有possible_keys有值的情况下才是命中索引
+</p>
+<p>
+	&nbsp;&nbsp;&nbsp;&nbsp;
+</p>
+<p>
+	&nbsp; &nbsp; 还有一点就是where条件的顺序是否会影响索引的命中，就是本来(ab)的组合，故意写where语句时写成(ba)，答案是没有影响，只要遵循了索引的最左原则即可，至少在mysql5.7测试没有问题。
+</p>
+<p>
+	<br>
+</p>
+<p>
+	&nbsp;&nbsp;&nbsp;&nbsp;最后，谈谈索引的底层数据结构b+tree
+</p>
+<p>
+	&nbsp; &nbsp; 我们知道BTREE 每个节点都是一个二元数组: [key, data]，所有节点都可以存储数据。key为索引key,data为除key之外的数据。
+</p>
+<p>
+	&nbsp; &nbsp; 查找算法：首先从根节点进行二分查找，如果找到则返回对应节点的data，否则对相应区间的指针指向的节点递归进行查找，直到找到节点或未找到节点返回空指针
+</p>
+<p>
+	&nbsp;&nbsp;&nbsp;&nbsp;B+Tree有以下不同点：非叶子节点不存储data，只存储索引key；只有叶子节点才存储data，而Mysql中B+Tree：在经典B+Tree的基础上进行了优化，增加了顺序访问指针。在B+Tree的每个叶子节点增加一个指向相邻叶子节点的指针，就形成了带有顺序访问指针的B+Tree。这样就提高了区间访问性能：请见下图，如果要查询key为从18到49的所有数据记录，当找到18后，只需顺着节点和指针顺序遍历就可
+</p>
+<p>
+	<img src="./1_files/20190610071247_40100.png" alt=""> 
+</p>
+<p>
+	<br>
+</p>
+<p>
+	<br>
+</p>              </div>
+            </div>
+          </article>
+          
+
+          
+        </div>
+                
+                
+        <div class="col-md-4 sidebar-gutter">
+          <aside>
+        
+          <div class="sidebar-widget">
+            <h3 class="sidebar-title">随机文章</h3>
+            <div class="widget-container">
+              
+
+              <article class="widget-post">
+      
+                <div class="post-body">
+                  <h2><a href="https://v3u.cn/a_id_93" title="使用Hexo建立一个轻量、简易、高逼格的博客">使用Hexo建立一个轻量、简易、高逼格的博客</a></h2>
+                  <div class="post-meta">
+                    <span><i class="fa fa-clock-o"></i> 2019-06-25</span> <span></span>
+                  </div>
+                </div>
+              </article><article class="widget-post">
+      
+                <div class="post-body">
+                  <h2><a href="https://v3u.cn/a_id_35" title="千万不要把涉及公司业务的代码上传github">千万不要把涉及公司业务的代码上传github</a></h2>
+                  <div class="post-meta">
+                    <span><i class="fa fa-clock-o"></i> 2015-02-19</span> <span></span>
+                  </div>
+                </div>
+              </article><article class="widget-post">
+      
+                <div class="post-body">
+                  <h2><a href="https://v3u.cn/a_id_44" title="Flask最新版本的中文翻译手册">Flask最新版本的中文翻译手册</a></h2>
+                  <div class="post-meta">
+                    <span><i class="fa fa-clock-o"></i> 2018-12-11</span> <span></span>
+                  </div>
+                </div>
+              </article><article class="widget-post">
+      
+                <div class="post-body">
+                  <h2><a href="https://v3u.cn/a_id_6" title="15个在github上最受欢迎的py框架,记录一下">15个在github上最受欢迎的py框架,记录一下</a></h2>
+                  <div class="post-meta">
+                    <span><i class="fa fa-clock-o"></i> 2014-09-13</span> <span></span>
+                  </div>
+                </div>
+              </article><article class="widget-post">
+      
+                <div class="post-body">
+                  <h2><a href="https://v3u.cn/a_id_86" title="具体谈谈如何优化前端性能的总结">具体谈谈如何优化前端性能的总结</a></h2>
+                  <div class="post-meta">
+                    <span><i class="fa fa-clock-o"></i> 2019-05-30</span> <span></span>
+                  </div>
+                </div>
+              </article><article class="widget-post">
+      
+                <div class="post-body">
+                  <h2><a href="https://v3u.cn/a_id_34" title="嘿，五年了">嘿，五年了</a></h2>
+                  <div class="post-meta">
+                    <span><i class="fa fa-clock-o"></i> 2016-07-28</span> <span></span>
+                  </div>
+                </div>
+              </article><article class="widget-post">
+      
+                <div class="post-body">
+                  <h2><a href="https://v3u.cn/a_id_33" title="Mac快捷键记录">Mac快捷键记录</a></h2>
+                  <div class="post-meta">
+                    <span><i class="fa fa-clock-o"></i> 2013-03-04</span> <span></span>
+                  </div>
+                </div>
+              </article><article class="widget-post">
+      
+                <div class="post-body">
+                  <h2><a href="https://v3u.cn/a_id_2" title="python 字典遍历方法性能对比">python 字典遍历方法性能对比</a></h2>
+                  <div class="post-meta">
+                    <span><i class="fa fa-clock-o"></i> 2012-02-23</span> <span></span>
+                  </div>
+                </div>
+              </article><article class="widget-post">
+      
+                <div class="post-body">
+                  <h2><a href="https://v3u.cn/a_id_32" title="Mac上，python多版本共存(非切换)">Mac上，python多版本共存(非切换)</a></h2>
+                  <div class="post-meta">
+                    <span><i class="fa fa-clock-o"></i> 2017-04-08</span> <span></span>
+                  </div>
+                </div>
+              </article><article class="widget-post">
+      
+                <div class="post-body">
+                  <h2><a href="https://v3u.cn/a_id_49" title="关于Django2.0跨域问题">关于Django2.0跨域问题</a></h2>
+                  <div class="post-meta">
+                    <span><i class="fa fa-clock-o"></i> 2019-03-05</span> <span></span>
+                  </div>
+                </div>
+              </article><article class="widget-post">
+      
+                <div class="post-body">
+                  <h2><a href="https://v3u.cn/a_id_30" title="Mac 上安装 Scrapy 报错，Operation not permitted">Mac 上安装 Scrapy 报错，Operation not permitted</a></h2>
+                  <div class="post-meta">
+                    <span><i class="fa fa-clock-o"></i> 2016-10-23</span> <span></span>
+                  </div>
+                </div>
+              </article><article class="widget-post">
+      
+                <div class="post-body">
+                  <h2><a href="https://v3u.cn/a_id_13" title="响应式设计笔记">响应式设计笔记</a></h2>
+                  <div class="post-meta">
+                    <span><i class="fa fa-clock-o"></i> 2017-02-21</span> <span></span>
+                  </div>
+                </div>
+              </article><article class="widget-post">
+      
+                <div class="post-body">
+                  <h2><a href="https://v3u.cn/a_id_89" title="在Centos下对Tornado的性能进行测试">在Centos下对Tornado的性能进行测试</a></h2>
+                  <div class="post-meta">
+                    <span><i class="fa fa-clock-o"></i> 2019-06-04</span> <span></span>
+                  </div>
+                </div>
+              </article><article class="widget-post">
+      
+                <div class="post-body">
+                  <h2><a href="https://v3u.cn/a_id_14" title="关于响应式设计最新的适配方案">关于响应式设计最新的适配方案</a></h2>
+                  <div class="post-meta">
+                    <span><i class="fa fa-clock-o"></i> 2017-07-12</span> <span></span>
+                  </div>
+                </div>
+              </article><article class="widget-post">
+      
+                <div class="post-body">
+                  <h2><a href="https://v3u.cn/a_id_84" title="在阿里云Centos7.6上利用docker搭建Jenkins来自动化部署Django项目">在阿里云Centos7.6上利用docker搭建Jenkins来自动化部署Django项目</a></h2>
+                  <div class="post-meta">
+                    <span><i class="fa fa-clock-o"></i> 2019-05-28</span> <span></span>
+                  </div>
+                </div>
+              </article>              
+            </div>
+          </div>
+          
+          </aside></div>
+          
+        </div>
+      </section></div>
+    
+    
+        
+    
+    
+<footer class="footer">
+
+     
+
+      <div class="footer-bottom">
+        <i class="fa fa-copyright"></i> Copyright v3u.cn | <a title="友情链接" href="https://v3u.cn/Index_friendlink">友情链接</a> <br>
+      </div>
+    </footer>
+  
+
+   <script src="./1_files/hm.js.下载"></script><script src="./1_files/1-min.js.下载"></script>
+
+
+
+   <script type="text/javascript">
+
+   var _navkey = '3';
+
+   $(".index_nav").removeClass("active");
+
+   $(".index_"+_navkey).addClass("active");
+
+   </script>
+
+<script>
+  var _hmt = _hmt || [];
+  (function() {
+    var hm = document.createElement("script");
+    hm.src = "https://hm.baidu.com/hm.js?109a3e84278252ed82bd489c43cc761c";
+    var s = document.getElementsByTagName("script")[0]; 
+    s.parentNode.insertBefore(hm, s);
+  })();
+  </script>
+  
+    <script>
+
+      prettyPrint();
+      
+      </script>
+  
+<div style="position: fixed; width: 40px; height: 40px; background: rgb(0, 0, 0); cursor: pointer; bottom: 150px; right: 100px; border-radius: 10px;" class="goup-container" title=""><div class="goup-arrow" style="width: 0px; height: 0px; margin: 0px auto; padding-top: 13px; border-style: solid; border-width: 0px 10px 10px; border-color: transparent transparent rgb(255, 255, 255);"></div></div></body></html>
